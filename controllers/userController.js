@@ -70,7 +70,7 @@ const changePassword = async (req,res) => {
         res.status(400).send("oldPassword, newPassword, and newPasswordConfirm all must be passed")
     }
 
-    if(req.body.newPassword != req.body.newPasswordConfirm) {
+    if(req.body.newPassword.localeCompare(req.body.newPasswordConfirm) != 0) {
         res.status(400).send("newPassword and newPasswordConfirm must match!")
     }
 
@@ -117,37 +117,59 @@ const changePassword = async (req,res) => {
 
 const forgotPassword = (req, res) => {
 
-
-
+    if(!req.body || !req.body.email) {
+        return res.status(400).send("Please enter your email")
+    }
+    // console.log("aur ji")
 
 
     let transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: 'vikramaditya@appventurez.com',
-          pass: 'longlivesatan'
+            user: 'ranterdudewtd@gmail.com',
+            pass: 'fwsokyakdroicdwc'
         }
-      });
+    });
       
-      let mailOptions = {
-        from: 'vikramaditya@appventurez.com',
+    let mailOptions = {
+        from: 'ranterdudewtd@gmail.com',
         to: req.body.email,
         subject: 'RESET PASSWORD LINK',
-        text: 'Click on this link to reset your password'
-      };
+        text: '<UI link to Reset Password page>' //DOUBT: how do we actually do this?
+    };
       
-      transporter.sendMail(mailOptions, function(error, info){
+    transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-          console.log(error);
+            console.log(error);
         }
-      });
+    });
 }
 
+
+const resetPassword = async (req, res) => {
+
+    if(!req.body || !req.body.newPassword || !req.body.newPasswordConfirm || !req.body.email) {
+        res.status(400).send("Please enter email, newPassword, and newPasswordConfirm fields")
+    }
+
+    if(req.body.newPassword.localeCompare(req.body.newPasswordConfirm)) {
+        res.status(400).send("newPassword and newPasswordConfirm fields must match!")
+    }
+
+    const newHashedPassword = await bcrypt.hash(req.body.newPassword, 10)
+    // console.log("naya",newHashedPassword)
+    const currentUser = await User.findOne({email: req.body.email})
+    // console.log(currentUser)    
+    currentUser.password = newHashedPassword;
+    currentUser.save()
+    res.status(200).send("Password has been reset! You may now log in with new password")
+}
 
 
 module.exports = {
     // setProfilePic,
     getAll,
     changePassword,
-    forgotPassword
+    forgotPassword,
+    resetPassword
 }
