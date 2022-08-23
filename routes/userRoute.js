@@ -10,5 +10,9 @@ const userController = require("../controllers/userController")
 
 router.get("/getAll", userController.getAll)
 
+router.put("/changePassword", userController.changePassword)
+
+router.put("/forgotPassword", userController.forgotPassword)
+
 
 module.exports = router;
