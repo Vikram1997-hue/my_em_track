@@ -12,8 +12,20 @@
 
 // console.log(ans)
 
-let a = 0;
-if(a)
-    console.log("san")
-else
-    console.log("ban")
+//----------------------------------------------------
+
+// let today = new Date((new Date().getFullYear()), (new Date().getMonth()), (new Date().getDate()))
+// console.log(today)
+
+// console.log(new Date().getDate())
+
+//-----------------------------------------------------
+
+// let a = 2;
+// // if(a > 1)
+// console.error("haww", new Error("ganda scene"))
+// console.log("achha")
+
+//------------------------------------------------------
+
+console.log(undefined == null)

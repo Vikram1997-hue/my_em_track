@@ -16,5 +16,14 @@ router.put("/forgotPassword", userController.forgotPassword)
 
 router.put("/resetPassword", userController.resetPassword)
 
+router.put("/checkIn", userController.checkIn)
+
+router.put("/checkOut", userController.checkOut)
+
+router.put("/login", userController.logIn)
+
+router.put("/logout", userController.logOut)
+
+
 
 module.exports = router;
