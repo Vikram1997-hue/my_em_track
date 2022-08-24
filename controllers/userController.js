@@ -20,9 +20,6 @@ async function findByIdTimeLogs(userId, today) {
     return doc
 }
 
-// function timestampToHMS(tstamp) {
-//     const hours = 
-// }
 
 // const setProfilePic = async (req, res) => {
 
@@ -152,6 +149,8 @@ const forgotPassword = (req, res) => {
             console.log(error);
         }
     });
+
+    res.status(200).send("Forgot Password link sent! Please check your mail")
 }
 
 
@@ -317,14 +316,38 @@ const logIn = async (req, res) => {
 
 
 
-const logOut = (req, res) => {
+const logOut = async (req, res) => {
 
     //first things first - do i have a JWT?
     if(!req.headers.authorization) {
         return res.status(401).send("Log in and try again")
     }
 
+    const receivedToken = req.headers.authorization.split(" ")[1]
+    if(receivedToken == null) {
+        return res.status(401).send("Invalid JWT error")
+    }
 
+    jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, (err, userData) => {
+        
+        if(err) {
+            return res.status(403).send(err)
+        }
+
+        req.userData = userData
+    })
+
+    //check if our this "valid" JWT actually exists in table RN
+    const currentUser = await findByIdUser(req.userData._id)
+    console.log(currentUser)
+    if(currentUser.token == ''){
+        return res.status(401).send("Log in and try again")
+    }
+    currentUser.token = ''
+    currentUser.save()
+    res.status(200).send("Logged out successfully")
+
+    
 }
 
 
