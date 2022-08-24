@@ -11,14 +11,10 @@ const TimeLogs = require("../models/timeLogs")
 setInterval(async () => {
 
     let pastClosing = false
-
-    const allUsers = await TimeLogs.find({$where: "this.checkIn.length > this.checkOut.length"}) 
-    // console.log(allUsers)
-
-
     let now = new Date()
     if((now.getHours() > process.env.TIMEOUT_HRS) || (now.getHours() == process.env.TIMEOUT_HRS && now.getMinutes() >= process.env.TIMEOUT_MINS))
         pastClosing = true
+
 
     if(pastClosing) {
 
@@ -37,14 +33,12 @@ setInterval(async () => {
             console.log("pushed value", currentUser.checkOut[currentUser.checkOut.length-1])
             currentUser.workHour = currentUser.workHour + ((autoCheckOutTime - currentUser.checkIn[currentUser.checkIn.length-1]) / (1000 * 3600) )
             await currentUser.save()
-        
         }
     }
     else
         console.log("abhi h time auto check out mein")
 
-
-}, 1000*3600*4) //1000*3600*24 //how about every 4 hours
+}, 1000*3600*24) 
 
 
 
@@ -386,8 +380,6 @@ const logOut = async (req, res) => {
     currentUser.token = ''
     currentUser.save()
     res.status(200).send("Logged out successfully")
-
-    
 }
 
 
