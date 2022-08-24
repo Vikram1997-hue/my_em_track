@@ -28,4 +28,15 @@
 
 //------------------------------------------------------
 
-console.log(undefined == null)
+// console.log(undefined == null)
+
+
+// setTimeout(() => {
+//     console.log("sup")
+// }, 1000*10)
+
+// console.log("sO ANUwau")
+
+
+console.log(new Date().getMinutes())
+console.log(new Date())

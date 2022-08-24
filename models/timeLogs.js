@@ -27,7 +27,7 @@ const TimeLogsSchema = new mongoose.Schema({
         default: 0,
         required: true,
         min: 0,
-        // max: 24, //REMOVE THIS
+        max: 24, //REMOVE THIS
     },
 }, { timestamps: true });
 

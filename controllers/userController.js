@@ -8,6 +8,46 @@ const User = require("../models/user")
 const TimeLogs = require("../models/timeLogs")
 
 
+setInterval(async () => {
+
+    let pastClosing = false
+
+    const allUsers = await TimeLogs.find({$where: "this.checkIn.length > this.checkOut.length"}) 
+    // console.log(allUsers)
+
+
+    let now = new Date()
+    if((now.getHours() > process.env.TIMEOUT_HRS) || (now.getHours() == process.env.TIMEOUT_HRS && now.getMinutes() >= process.env.TIMEOUT_MINS))
+        pastClosing = true
+
+    if(pastClosing) {
+
+        while(1) {
+
+            const currentUser = await TimeLogs.findOne({$where: "this.checkIn.length > this.checkOut.length"})
+            if(currentUser == null)
+                break
+            
+            console.log("\n\nabhi ispe operation:", currentUser)
+            let autoCheckOutTime = new Date(currentUser.date.getFullYear(), currentUser.date.getMonth(), currentUser.date.getDate(), process.env.TIMEOUT_HRS, process.env.TIMEOUT_MINS)
+            // console.log(currentUser.checkIn[currentUser.checkIn.length-1], autoCheckOutTime)
+            console.log("YOU ARE GETTING THROWN OUT AT", autoCheckOutTime)
+            
+            currentUser.checkOut.push(autoCheckOutTime)
+            console.log("pushed value", currentUser.checkOut[currentUser.checkOut.length-1])
+            currentUser.workHour = currentUser.workHour + ((autoCheckOutTime - currentUser.checkIn[currentUser.checkIn.length-1]) / (1000 * 3600) )
+            await currentUser.save()
+        
+        }
+    }
+    else
+        console.log("abhi h time auto check out mein")
+
+
+}, 1000*3600*4) //1000*3600*24 //how about every 4 hours
+
+
+
 
 async function findByIdUser(id) {
     
