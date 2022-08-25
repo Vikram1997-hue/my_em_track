@@ -432,7 +432,7 @@ const logOut = async (req, res) => {
 }
 
 
-const getUserTimeLogs = (req, res) => { //attempting polymorphism for user and subadmin
+const getUserTimeLogs = (req, res) => { //exhibits polymorphism
 
     //is he logged in?
     if(!req.headers.authorization) {
