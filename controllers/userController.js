@@ -579,6 +579,22 @@ const employeeCountByDay = async (req, res) => {
         console.log("AND HIS SUBBIES ARE",requiredData)
 
 
+        //date validation
+        if(!req.query.start_date || !req.query.end_date)
+            res.status(400).send("start_date and end_date are required")
+
+        const start_date = new Date(req.query.start_date)
+        const end_date = new Date(req.query.end_date)
+
+        if(start_date > end_date) {
+            return res.status(400).send("start_date must be less than end_date")
+        }
+
+        let now = new Date()
+        if(start_date < new Date(now.setMonth(now.getMonth() - 6))) {
+            return res.status(400).send("Neither date can be older than 6 months")
+        }
+
         
     })
     
