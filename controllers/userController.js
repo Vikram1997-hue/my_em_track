@@ -78,7 +78,6 @@ const getAll = (req, res) => {     //FOR THIS TO WORK - SEND JWT IN AUTHORIZATIO
         return res.status(401).send("Invalid JWT")
     }
 
-    const currentUser = ''
     jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, async (err, userData) => {
 
         if(err) {
@@ -88,23 +87,24 @@ const getAll = (req, res) => {     //FOR THIS TO WORK - SEND JWT IN AUTHORIZATIO
 
         
         //now we have a valid JWT. But is this a JWT that exists in the DB currently?
-        currentUser = await findByIdUser(userData._id)
-        if(currentUser.token.localeCompare(receivedToken) != 0) {
+        let currentUser = await findByIdUser(userData._id)
+        if(currentUser.loginToken.localeCompare(receivedToken) != 0) {
             return res.status(403).send("No user found with this JWT")
         }
 
+        const ans = {
+            name: currentUser.name,
+            email: currentUser.email,
+            employeeId: currentUser.employeeId,
+            profilePic: currentUser.profilePic
+        }
+    
+        res.status(200).send(ans)
     })
     
     // const currentUser = await findByIdUser(req.userData._id)
 
-    const ans = {
-        name: currentUser.name,
-        email: currentUser.email,
-        employeeId: currentUser.employeeId,
-        profilePic: currentUser.profilePic
-    }
-
-    res.status(200).send(ans)
+    
 }
 
 
@@ -130,7 +130,6 @@ const changePassword = async (req,res) => {
     }
 
 
-    const currentUser = ''
     //obtain our guy from JWT
     jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, async (err, userData) => {
         if(err) {
@@ -141,30 +140,29 @@ const changePassword = async (req,res) => {
 
         //now we have a valid JWT. But is this a JWT that exists in the DB currently?
         currentUser = await findByIdUser(userData._id)
-        if(currentUser.token.localeCompare(receivedToken) != 0) {
+        if(currentUser.loginToken.localeCompare(receivedToken) != 0) {
             return res.status(403).send("No user found with this JWT")
         }
-    })
+
+        const fetchedPassword = currentUser.password
+        // console.log(fetchedPassword)
+        const passwordMatch = await bcrypt.compare(req.body.oldPassword, fetchedPassword)
+        console.log("passwordMatch:", passwordMatch)
 
 
-    const fetchedPassword = currentUser.password
-    // console.log(fetchedPassword)
-    const passwordMatch = await bcrypt.compare(req.body.oldPassword, fetchedPassword)
-    console.log("passwordMatch:", passwordMatch)
+        if(passwordMatch == false) {
+            return res.status(403).send("Incorrect password entered")
+        }
 
+        const newHashedPassword = await bcrypt.hash(req.body.newPassword, 10)
+        // console.log("Your new password is:", newHashedPassword)
+        
 
-    if(passwordMatch == false) {
-        return res.status(403).send("Incorrect password entered")
-    }
-
-    const newHashedPassword = await bcrypt.hash(req.body.newPassword, 10)
-    // console.log("Your new password is:", newHashedPassword)
-    
-
-    // console.log("before:", currentUser, currentUser.password)
-    currentUser.password = newHashedPassword;
-    currentUser.save()
-    res.status(200).send("Password has been updated!") //FUTURE: NODEMAILER NOTIF
+        // console.log("before:", currentUser, currentUser.password)
+        currentUser.password = newHashedPassword;
+        currentUser.save()
+        res.status(200).send("Password has been updated!") //FUTURE: NODEMAILER NOTIF
+    })   
 }
 
 
@@ -204,7 +202,7 @@ const forgotPassword = async (req, res) => {
         role: currentUser.role
     }
     const myResetToken = jwt.sign(userData, process.env.JWT_SECRET_KEY, {
-        expiresIn: '120000' //7200000  2 hours
+        expiresIn: '7200000' //2 hours
     })
     currentUser.resetToken = myResetToken;
     currentUser.manager = null;
@@ -394,7 +392,7 @@ const logIn = async (req, res) => {
     }
 
     const currentSessionJWT = jwt.sign(userData, process.env.JWT_SECRET_KEY)
-    currentUser.token = currentSessionJWT
+    currentUser.loginToken = currentSessionJWT
     currentUser.save()
     res.status(200).send("Log in successful!")
 }
@@ -425,10 +423,10 @@ const logOut = async (req, res) => {
     //check if our this "valid" JWT actually exists in table RN
     const currentUser = await findByIdUser(req.userData._id)
     console.log(currentUser)
-    if(currentUser.token == ''){
+    if(currentUser.loginToken == ''){
         return res.status(401).send("Log in and try again")
     }
-    currentUser.token = ''
+    currentUser.loginToken = ''
     currentUser.save()
     res.status(200).send("Logged out successfully")
 }
@@ -461,7 +459,7 @@ const getUserTimeLogs = (req, res) => { //attempting polymorphism for user and s
 
         //now we have a valid JWT. But is this a JWT that exists in the DB currently?
         const currentUser = await findByIdUser(userData._id)
-        if(currentUser.token.localeCompare(receivedToken) != 0) {
+        if(currentUser.loginToken.localeCompare(receivedToken) != 0) {
             return res.status(403).send("No user found with this JWT")
         }
         
@@ -514,11 +512,7 @@ const getUserTimeLogs = (req, res) => { //attempting polymorphism for user and s
 }
 
 
-
-
-
-
-const viewAssignedEmployees = (req, res) => {
+const viewSingleAssignedEmployees = (req, res) => {
     
     if(!req.headers.authorization) {
         return res.status(401).send("Log in and try again")
@@ -537,7 +531,7 @@ const viewAssignedEmployees = (req, res) => {
 
         //valid JWT. but is it in DB?
         const currentUser = await findByIdUser(userData._id)
-        if(currentUser.token.localeCompare(receivedToken) != 0) {
+        if(currentUser.loginToken.localeCompare(receivedToken) != 0) {
             return res.status(403).send("No sub-admin found with this JWT!")
         }
 
@@ -553,6 +547,43 @@ const viewAssignedEmployees = (req, res) => {
 
 
 
+const employeeCountByDay = async (req, res) => {
+
+    if(!req.headers.authorization) {
+        return res.status(401).send("Please log in and try again")
+    }
+
+    const receivedToken = req.headers.authorization.split(" ")[1]
+    if(receivedToken == null) {
+        return res.status(401).send("Invalid JWT")
+    }
+
+    jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, async (err, userData) => {
+        if(err) {
+            console.error("Error in JWT verification:", err)
+            res.status(403).send(err)
+        }
+
+        //we now have a valid JWT. But is it the correct one?
+        let currentUser = await findByIdUser(userData._id)
+        console.log(currentUser)
+        if(currentUser.loginToken.localeCompare(receivedToken)) {
+            res.status(403).send("No sub-admin found with this JWT!")
+        }
+
+        if(currentUser.role.localeCompare("subAdmin")) {
+            res.status(403).send("YOU ARE NOT A SUBADMIN. You do not have the permissions necessary for this action.")
+        }
+
+        const requiredData = await User.find({manager: currentUser._id})
+        console.log("AND HIS SUBBIES ARE",requiredData)
+
+
+        
+    })
+    
+    
+}
 
 
 module.exports = {
@@ -566,5 +597,6 @@ module.exports = {
     logOut,
     // logsForDashboard,
     getUserTimeLogs,
-    viewAssignedEmployees
+    viewSingleAssignedEmployees,
+    employeeCountByDay
 }

@@ -48,7 +48,7 @@ const UserSchema = new mongoose.Schema({
         ref: 'User',
         default: null,
     },
-    token: {
+    loginToken: {
         type: String,
         default: '',
     },
