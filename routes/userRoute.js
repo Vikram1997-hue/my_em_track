@@ -26,7 +26,7 @@ router.put("/logout", userController.logOut)
 
 router.get("/getUserTimeLogs", userController.getUserTimeLogs)
 
-router.get("/viewSingleAssignedEmployees", userController.viewSingleAssignedEmployees)
+router.get("/viewAllAssignedEmployees", userController.viewAllAssignedEmployees)
 
 router.get("/employeeCountByDay", userController.employeeCountByDay)
 

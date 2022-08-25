@@ -486,7 +486,10 @@ const getUserTimeLogs = (req, res) => { //attempting polymorphism for user and s
 
         //ADDING IN POLYMORPHISM
         console.log("USER ROLE:", currentUser.role)
-        if(currentUser.role == 'user') {
+        if(currentUser.role == 'superAdmin') {
+            res.send("Redirecting to superAdmin's handler code...")
+        }
+        else if(currentUser.role == 'user') {
             requiredData = await TimeLogs.find({date: {$gte: start_date, $lte: end_date}, user: userData._id})
         }
         else if(currentUser.role == 'subAdmin') {
@@ -512,7 +515,7 @@ const getUserTimeLogs = (req, res) => { //attempting polymorphism for user and s
 }
 
 
-const viewSingleAssignedEmployees = (req, res) => {
+const viewAllAssignedEmployees = (req, res) => {
     
     if(!req.headers.authorization) {
         return res.status(401).send("Log in and try again")
@@ -540,7 +543,7 @@ const viewSingleAssignedEmployees = (req, res) => {
 
         
         //all is well. finally doing the data retrieval --
-        const results = await User.find({manager: currentUser._id})
+        const results = await User.find({manager: currentUser._id}, {name:1, employeeId:1, email:1, status:1})
         res.status(200).send(results)
     })
 }
@@ -595,7 +598,7 @@ const employeeCountByDay = async (req, res) => {
             return res.status(400).send("Neither date can be older than 6 months")
         }
 
-        
+
     })
     
     
@@ -613,6 +616,7 @@ module.exports = {
     logOut,
     // logsForDashboard,
     getUserTimeLogs,
-    viewSingleAssignedEmployees,
+    // viewSingleAssignedEmployees,
+    viewAllAssignedEmployees,
     employeeCountByDay
 }
