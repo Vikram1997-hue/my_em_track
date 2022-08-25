@@ -38,5 +38,10 @@
 // console.log("sO ANUwau")
 
 
-console.log(new Date().getMinutes())
-console.log(new Date())
+// console.log(new Date().getMinutes())
+// console.log(new Date())
+
+
+let str = "1999-01-02"
+let a = new Date(str)
+console.log(a)

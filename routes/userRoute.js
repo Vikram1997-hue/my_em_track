@@ -24,6 +24,10 @@ router.put("/login", userController.logIn)
 
 router.put("/logout", userController.logOut)
 
+router.get("/getUserTimeLogs", userController.getUserTimeLogs)
+
+router.get("/viewAssignedEmployees", userController.viewAssignedEmployees)
+
 
 
 module.exports = router;

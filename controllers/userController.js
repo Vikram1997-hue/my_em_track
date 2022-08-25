@@ -12,8 +12,18 @@ setInterval(async () => {
 
     let pastClosing = false
     let now = new Date()
-    if((now.getHours() > process.env.TIMEOUT_HRS) || (now.getHours() == process.env.TIMEOUT_HRS && now.getMinutes() >= process.env.TIMEOUT_MINS))
+    const nonCheckedOutUser = await TimeLogs.findOne({$where: "this.checkIn.length > this.checkOut.length"})
+    // nonCheckedOutUser.date
+    if(nonCheckedOutUser == null)
+        console.log("everyone is checked out")
+    else if(nonCheckedOutUser.date.getFullYear() == now.getFullYear() && nonCheckedOutUser.date.getMonth() == now.getMonth() && nonCheckedOutUser.date.getDate() == now.getDate()) {
+        if((now.getHours() > process.env.TIMEOUT_HRS) || (now.getHours() == process.env.TIMEOUT_HRS && now.getMinutes() >= process.env.TIMEOUT_MINS))
+            pastClosing = true    
+    }
+    else {
+        //if we are here, then we never entered the else if. That means it's not same date
         pastClosing = true
+    }
 
 
     if(pastClosing) {
@@ -55,14 +65,7 @@ async function findByIdTimeLogs(userId, today) {
 }
 
 
-// const setProfilePic = async (req, res) => {
-
-//     const currentUser = await User.findById()
-
-// }
-
-
-const getAll = async (req, res) => {     //FOR THIS TO WORK - SEND JWT IN AUTHORIZATION HEADER
+const getAll = (req, res) => {     //FOR THIS TO WORK - SEND JWT IN AUTHORIZATION HEADER
     
     //at this point, it is assumed that our guy is signed in
     if(!req.headers.authorization) { 
@@ -70,23 +73,29 @@ const getAll = async (req, res) => {     //FOR THIS TO WORK - SEND JWT IN AUTHOR
     }
 
     const receivedToken = req.headers.authorization.split(" ")[1]
-
     if(receivedToken == null) {
         console.log("entered token null error")
         return res.status(401).send("Invalid JWT")
     }
 
-    jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, (err, userData) => {
+    const currentUser = ''
+    jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, async (err, userData) => {
 
         if(err) {
             console.error("Error in JWT verification:", err)
             return res.status(403).send(err)
         }
 
-        req.userData = userData
+        
+        //now we have a valid JWT. But is this a JWT that exists in the DB currently?
+        currentUser = await findByIdUser(userData._id)
+        if(currentUser.token.localeCompare(receivedToken) != 0) {
+            return res.status(403).send("No user found with this JWT")
+        }
+
     })
     
-    const currentUser = await findByIdUser(req.userData._id)
+    // const currentUser = await findByIdUser(req.userData._id)
 
     const ans = {
         name: currentUser.name,
@@ -95,7 +104,7 @@ const getAll = async (req, res) => {     //FOR THIS TO WORK - SEND JWT IN AUTHOR
         profilePic: currentUser.profilePic
     }
 
-    res.send(ans)
+    res.status(200).send(ans)
 }
 
 
@@ -116,7 +125,12 @@ const changePassword = async (req,res) => {
 
 
     const receivedToken = req.headers.authorization.split(" ")[1]
-    
+    if(receivedToken == null) {
+        return res.status(401).send("Invalid JWT")
+    }
+
+
+    const currentUser = ''
     //obtain our guy from JWT
     jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, async (err, userData) => {
         if(err) {
@@ -125,14 +139,14 @@ const changePassword = async (req,res) => {
         }
 
 
-        //if we are here, it's definitely our guy
-        req.userData = userData;
+        //now we have a valid JWT. But is this a JWT that exists in the DB currently?
+        currentUser = await findByIdUser(userData._id)
+        if(currentUser.token.localeCompare(receivedToken) != 0) {
+            return res.status(403).send("No user found with this JWT")
+        }
     })
 
 
-    console.log("userdata:", req.userData._id)
-
-    const currentUser = await findByIdUser(req.userData._id)
     const fetchedPassword = currentUser.password
     // console.log(fetchedPassword)
     const passwordMatch = await bcrypt.compare(req.body.oldPassword, fetchedPassword)
@@ -155,7 +169,7 @@ const changePassword = async (req,res) => {
 
 
 
-const forgotPassword = (req, res) => {
+const forgotPassword = async (req, res) => {
 
     if(!req.body || !req.body.email) {
         return res.status(400).send("Please enter your email")
@@ -184,11 +198,43 @@ const forgotPassword = (req, res) => {
         }
     });
 
+    const currentUser = await User.findOne({email: req.body.email})
+    const userData = {
+        _id: currentUser._id,
+        role: currentUser.role
+    }
+    const myResetToken = jwt.sign(userData, process.env.JWT_SECRET_KEY, {
+        expiresIn: '120000' //7200000  2 hours
+    })
+    currentUser.resetToken = myResetToken;
+    currentUser.manager = null;
+    currentUser.save()
+
+
     res.status(200).send("Forgot Password link sent! Please check your mail")
 }
 
 
 const resetPassword = async (req, res) => {
+
+    //should contain the JWT for expiration time
+    if(!req.headers.authorization) {
+        return res.status(401).send("Please send JWT")
+    }
+
+    const receivedToken = req.headers.authorization.split(" ")[1]
+    if(receivedToken == null) {
+        return res.status(401).send("Invalid JWT")
+    }
+
+    jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, (err, userData) => {
+        if(err) {
+            console.log("Error in JWT verification", err)
+            return res.status(403).send(err)
+        }
+
+    })
+
 
     if(!req.body || !req.body.newPassword || !req.body.newPasswordConfirm || !req.body.email) {
         return res.status(400).send("Please enter email, newPassword, and newPasswordConfirm fields")
@@ -204,7 +250,7 @@ const resetPassword = async (req, res) => {
     // console.log(currentUser)    
     currentUser.password = newHashedPassword;
     currentUser.save()
-    res.status(200).send("Password has been reset! You may now log in with new password")
+    res.status(200).end("Password has been reset! You may now log in with new password")
 }
 
 
@@ -218,7 +264,7 @@ const checkIn = async (req, res) => {
     //we don't ask for username - simply obtain that through ID in JWT
 
     const receivedToken = req.headers.authorization.split(" ")[1]
-    
+
     if(receivedToken == null) {
         return res.status(401).send("Invalid JWT")
     }
@@ -279,15 +325,20 @@ const checkOut = async (req, res) => {
         return res.status(401).send("Invalid JWT")
     }
 
-    jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, (err, userData) => {
-        if(err) {
-            console.error("Error in JWT verification", err)
-            return res.status(403).send(err)
-        }
+    try {
+        jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, (err, userData) => {
+            if(err) {
+                console.error("Error in JWT verification", err)
+                return res.status(403).send(err)
+            }
 
-        req.userData = userData
-    })
-
+            req.userData = userData
+        })
+    }
+    catch(error) {
+        console.error(error)
+    }
+    
     const today = new Date((new Date().getFullYear()), (new Date().getMonth()), (new Date().getDate()))
     const currentUser = await findByIdTimeLogs(req.userData._id, today)
     console.log(currentUser)
@@ -383,11 +434,128 @@ const logOut = async (req, res) => {
 }
 
 
+const getUserTimeLogs = (req, res) => { //attempting polymorphism for user and subadmin
+
+    //is he logged in?
+    if(!req.headers.authorization) {
+        return res.status(401).send("Log in and try again")
+    }
+
+    const receivedToken = req.headers.authorization.split(" ")[1]
+    if(receivedToken == null) {
+        return res.status(401).send("Invalid JWT")
+    }
+
+
+    //THIS PROGRAM ASSUMES THAT 2 STRINGS (START_DATE AND END_DATE) ARE PASSED AS QUERY PARAMS
+    if(!req.query.start_date || !req.query.end_date) {
+        return res.status(400).send("start_date and end_date are needed")
+    }
+
+
+    jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, async (err, userData) => {
+        if(err) {
+            console.error("Error in JWT verification:", err)
+            return res.status(403).send(err)
+        }
+
+        //now we have a valid JWT. But is this a JWT that exists in the DB currently?
+        const currentUser = await findByIdUser(userData._id)
+        if(currentUser.token.localeCompare(receivedToken) != 0) {
+            return res.status(403).send("No user found with this JWT")
+        }
+        
+
+        //if we are still here, everything is in order
+        console.log(currentUser)
+        const start_date = new Date(req.query.start_date)
+        const end_date = new Date(req.query.end_date)
+        
+        
+        //date validation
+        if(start_date > end_date) {
+            return res.status(400).send("start_date must be less than end_date")
+        }
+
+        let now = new Date()
+        if(start_date < new Date(now.setMonth(now.getMonth() - 6))) {
+            return res.status(400).send("Neither date can be older than 6 months")
+        }
+
+
+
+        let requiredData;
+
+        //ADDING IN POLYMORPHISM
+        console.log("USER ROLE:", currentUser.role)
+        if(currentUser.role == 'user') {
+            requiredData = await TimeLogs.find({date: {$gte: start_date, $lte: end_date}, user: userData._id})
+        }
+        else if(currentUser.role == 'subAdmin') {
+            // requiredData = await TimeLogs.find //LEARN LOOKUP
+            if(!req.body.subordinateId) {
+                return res.status(400).send("subordinateId is missing")
+            }
+
+            //first let's check if this employee is one of our guy's subordinates
+            const subordinate = await findByIdUser(req.body.subordinateId)
+            if(JSON.stringify(subordinate.manager) != JSON.stringify(currentUser._id)) {
+                return res.status(403).send("This employee is not managed by you!")
+            }
+            requiredData = await TimeLogs.find({date: {$gte: start_date, $lte: end_date}, user: req.body.subordinateId})
+
+        }
+
+
+        // console.log("printing hits", requiredData)
+        
+        res.status(200).send(requiredData)
+    })
+}
+
+
+
+
+
+
+const viewAssignedEmployees = (req, res) => {
+    
+    if(!req.headers.authorization) {
+        return res.status(401).send("Log in and try again")
+    }
+
+    const receivedToken = req.headers.authorization.split(" ")[1]
+    if(receivedToken == null) {
+        return res.status(401).send("Invalid JWT")
+    }
+
+    jwt.verify(receivedToken, process.env.JWT_SECRET_KEY, async (err, userData) => {
+        if(err) {
+            console.error("Error in JWT verification:", err)
+            return res.status(403).send(err)
+        }
+
+        //valid JWT. but is it in DB?
+        const currentUser = await findByIdUser(userData._id)
+        if(currentUser.token.localeCompare(receivedToken) != 0) {
+            return res.status(403).send("No sub-admin found with this JWT!")
+        }
+
+        if(currentUser.role.localeCompare("subAdmin") != 0) 
+            return res.status(403).send("YOU ARE NOT A SUBADMIN. You do not have the necessary permissions for this action.")
+
+        
+        //all is well. finally doing the data retrieval --
+        const results = await User.find({manager: currentUser._id})
+        res.status(200).send(results)
+    })
+}
+
+
 
 
 
 module.exports = {
-    // setProfilePic,
     getAll,
     changePassword,
     forgotPassword,
@@ -395,5 +563,8 @@ module.exports = {
     checkIn,
     checkOut,
     logIn,
-    logOut
+    logOut,
+    // logsForDashboard,
+    getUserTimeLogs,
+    viewAssignedEmployees
 }
