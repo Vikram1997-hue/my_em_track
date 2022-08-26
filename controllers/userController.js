@@ -36,19 +36,19 @@ setInterval(async () => {
             
             console.log("\n\nabhi ispe operation:", currentUser)
             let autoCheckOutTime = new Date(currentUser.date.getFullYear(), currentUser.date.getMonth(), currentUser.date.getDate(), process.env.TIMEOUT_HRS, process.env.TIMEOUT_MINS)
-            // console.log(currentUser.checkIn[currentUser.checkIn.length-1], autoCheckOutTime)
             console.log("YOU ARE GETTING THROWN OUT AT", autoCheckOutTime)
             
             currentUser.checkOut.push(autoCheckOutTime)
             console.log("pushed value", currentUser.checkOut[currentUser.checkOut.length-1])
             currentUser.workHour = currentUser.workHour + ((autoCheckOutTime - currentUser.checkIn[currentUser.checkIn.length-1]) / (1000 * 3600) )
+            console.log("WE HAS DONEEEEE", currentUser.checkIn[currentUser.checkIn.length-1])
             await currentUser.save()
         }
     }
     else
         console.log("abhi h time auto check out mein")
 
-}, 1000*3600*24) 
+}, 1000*3600*24) //1000*3600*24 
 
 
 
